@@ -31,7 +31,7 @@
         if(!res.ok)throw Error('伺服器回應失敗，沒有確認同步成功。');
         const json=await res.json();
         if(json.protocol!==2)throw Error('後端尚未更新，請先部署新版 Code.gs。');
-        if(!json.success)throw Error(json.error||'同步失敗，本機資料仍保留。');
+        if(!json.success){const error=Error(json.error||'同步失敗，本機資料仍保留。');error.code=json.code;throw error}
         if(json.user!==user||typeof json.revision!=='string'||!json.revision)throw Error('回應帳號或版本不符，已停止同步。');
         return json;
       }finally{clearTimeout(timer)}
@@ -53,24 +53,22 @@
     }
     async function upload(user,review=false){return guarded(async()=>{
       const data=validate(snapshot()),raw=JSON.stringify(data);
-      if(meta&&meta.user!==user)throw Error('本機資料屬於另一帳號，請先匯出備份，再下載此帳號的資料。');
-      let revision=meta?.revision;
+      const switching=!!meta&&meta.user!==user;
+      let revision=switching?null:meta?.revision;
       if(!revision||review){
         const cloud=await request(user,{});
-        if(cloud.exists){
-          const remote=validate(JSON.parse(cloud.data));
-          if(JSON.stringify(remote)!==raw&&!review)throw Error('首次連結時本機與雲端版本不同。請先匯出，再下載雲端或選「比較版本，使用本機資料」。');
-          if(review){
-            const counts=x=>['tasks','categories','events','longPlans'].map(k=>x[k].length).join(' / ');
-            if(!await confirm('比較項目數：事件 / 類別 / 重大事項 / 計畫\n本機：'+counts(data)+'\n雲端：'+counts(remote)+'（第 '+cloud.version+' 版）\n\n選擇使用本機完整資料？雲端內容會先備份，不會自動合併。'))return {cancelled:true};
-            store.setItem('lazyPlanner.cloudBackup.v2',JSON.stringify({at:new Date().toISOString(),user,data:remote,revision:cloud.revision,version:cloud.version}));
-          }
+        const remote=cloud.exists?validate(JSON.parse(cloud.data)):null;
+        if(switching||review||(remote&&JSON.stringify(remote)!==raw)){
+          const counts=x=>['tasks','categories','events','longPlans'].map(k=>x[k].length).join(' / ');
+          const message=(switching?'目前資料來自「'+meta.user+'」。\n':'')+'將本機資料上傳到「'+user+'」？\n'+(remote?'項目數：非計畫性事件 / 類別 / 重大事項 / 計畫\n本機：'+counts(data)+'\n雲端：'+counts(remote)+'（第 '+cloud.version+' 版）\n\n確認後會取代此帳號的雲端資料，不會合併。':'此帳號尚無雲端資料。')+'\n程式會先自動備份，無需先手動匯出。';
+          if(!await confirm(message))return {cancelled:true};
+          if(stale||stamp()!==raw)throw Error('資料已變更，請重新上傳。');
+          backup();
+          if(remote)store.setItem('lazyPlanner.cloudBackup.v2',JSON.stringify({at:new Date().toISOString(),user,data:remote,revision:cloud.revision,version:cloud.version}));
         }
         revision=cloud.revision;
       }
       if(stale||stamp()!==raw)throw Error('檢查期間本機資料已變更，請重新上傳。');
-      if(!await confirm('上傳目前資料到「'+user+'」？雲端將保留上一版。'))return {cancelled:true};
-      if(stale||stamp()!==raw)throw Error('資料已變更，請重新上傳。');
       let pending=read(PENDING);
       if(!pending||pending.user!==user||pending.data!==raw||pending.revision!==revision)pending={user,data:raw,revision,id:root.crypto?.randomUUID?.()||Date.now()+'-'+Math.random()};
       store.setItem(PENDING,JSON.stringify(pending));
