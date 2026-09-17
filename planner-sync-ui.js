@@ -1,7 +1,7 @@
 /* Loaded after planner-integration.js. No request runs until the user chooses an action. */
 (() => {
   const $=s=>document.querySelector(s);
-  const API_URL='https://script.google.com/macros/s/AKfycbyimSDhECapJoeJjN9F4vOrNXMBpM306wwElXg5IElVAhseB_e7RYsCUJMYH7xPirsjcQ/exec';
+  const API_URL='https://script.google.com/macros/s/AKfycbwds0o7fp3m1D0Zy7k85H8hMxxBovuypWnBG7H4I166K7pE6k5vvsjhVVLHpuO89C2HRg/exec';
   const snapshot=()=>JSON.parse(JSON.stringify({tasks,categories,events,longPlans}));
   const overlay=document.createElement('div');overlay.id='syncBackdrop';overlay.className='category-backdrop';overlay.style.zIndex=10;
   const panel=document.createElement('section');panel.id='syncPanel';panel.className='category-dialog';panel.style.zIndex=11;panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-labelledby','syncTitle');
