@@ -5,7 +5,7 @@
   const snapshot=()=>JSON.parse(JSON.stringify({tasks,categories,events,longPlans}));
   const overlay=document.createElement('div');overlay.id='syncBackdrop';overlay.className='category-backdrop';overlay.style.zIndex=10;
   const panel=document.createElement('section');panel.id='syncPanel';panel.className='category-dialog';panel.style.zIndex=11;panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-labelledby','syncTitle');
-  panel.innerHTML='<header class="dialog-head"><h2 id="syncTitle">備份與同步</h2><button id="closeSync" class="close-manager" aria-label="關閉">×</button></header><div class="plan-form"><label>帳號名稱<input id="syncUser" maxlength="100" autocomplete="off"></label><p class="manager-note">沿用原帳號名稱。上傳會檢查版本；下載前保留本機備份。</p><button id="uploadCloud" class="save">上傳本機資料</button><button id="reviewCloud" class="cancel">比較版本，使用本機資料</button><button id="downloadCloud" class="cancel">下載雲端目前版本</button><button id="previousCloud" class="cancel">下載雲端上一版</button><button id="exportLocal" class="cancel">匯出目前資料 JSON</button><button id="restoreLocal" class="cancel">還原取代前的本機備份</button><button id="exportCloudBackup" class="cancel">匯出取代前的雲端備份</button><button id="exportBackup" class="cancel">匯出取代前的本機備份</button><p id="syncStatus" role="status" style="line-height:1.6;overflow-wrap:anywhere;margin:0"></p></div>';
+  panel.innerHTML='<header class="dialog-head"><h2 id="syncTitle">備份與同步</h2><button id="closeSync" class="close-manager" aria-label="關閉">×</button></header><div class="plan-form"><label>帳號名稱<input id="syncUser" maxlength="100" autocomplete="off"></label><p class="manager-note">上傳會核對雲端版本；取代資料前自動備份。</p><button id="uploadCloud" class="save">上傳本機資料</button><button id="downloadCloud" class="cancel">下載雲端資料</button><p id="syncStatus" role="status" style="line-height:1.6;overflow-wrap:anywhere;margin:0"></p><details id="syncAdvanced"><summary style="cursor:pointer;padding:12px 0">備份與還原</summary><div style="display:grid;gap:12px;padding-top:8px"><button id="exportLocal" class="cancel">匯出目前資料 JSON</button><button id="previousCloud" class="cancel">下載雲端上一版</button><button id="restoreLocal" class="cancel">還原取代前的本機備份</button><button id="exportCloudBackup" class="cancel">匯出取代前的雲端備份</button><button id="exportBackup" class="cancel">匯出取代前的本機備份</button><button id="reviewCloud" class="cancel">比較版本，使用本機資料</button></div></details></div>';
   document.body.append(overlay,panel);
   const confirmLayer=document.createElement('div');confirmLayer.style.cssText='display:none;position:fixed;inset:0;z-index:14;background:#0f172a80;align-items:center;justify-content:center;padding:20px';
   confirmLayer.innerHTML='<section role="alertdialog" aria-modal="true" aria-labelledby="syncConfirmTitle" style="max-width:420px;width:100%;background:white;padding:22px;border-radius:20px"><h2 id="syncConfirmTitle" style="font-size:1.1rem;margin-top:0">確認資料操作</h2><p id="syncConfirmText" style="white-space:pre-wrap;line-height:1.6"></p><div class="dialog-actions"><button id="syncNo" class="cancel">取消</button><button id="syncYes" class="save">確認</button></div></section>';
@@ -28,7 +28,7 @@
   function open(){
     $('#syncUser').value=localStorage.getItem('lazyPlanner.user')||'';
     overlay.classList.add('show');panel.classList.add('show');
-    const meta=core.getMeta();status(meta?.savedAt?'上次取得的雲端版本：'+meta.version+'（'+meta.savedAt+'）':'尚未建立新版同步紀錄；請先匯出目前資料。');$('#syncUser').focus();
+    const meta=core.getMeta();status(meta?.savedAt?'上次取得的雲端版本：'+meta.version+'（'+meta.savedAt+'）':'選擇上傳本機資料，或下載此帳號的雲端資料。');$('#syncUser').focus();
   }
   function close(){if(core.isBusy())return;overlay.classList.remove('show');panel.classList.remove('show');$('#cloudSyncBtn').focus()}
   $('#cloudSyncBtn').textContent='備份 / 同步';$('#cloudSyncBtn').onclick=open;$('#closeSync').onclick=close;overlay.onclick=close;
@@ -46,7 +46,13 @@
     panel.querySelectorAll('button,input').forEach(b=>b.disabled=true);$('#logoutBtn').disabled=true;
     status('處理中，請保留此畫面…');
     try{
-      const result=(action==='upload'||action==='review')?await core.upload(user,action==='review'):action==='restore'?await core.restoreLocal():await core.download(user,action==='previous');
+      let result;
+      try{result=(action==='upload'||action==='review')?await core.upload(user,action==='review'):action==='restore'?await core.restoreLocal():await core.download(user,action==='previous')}
+      catch(error){
+        if(action!=='upload'||error.code!=='CONFLICT')throw error;
+        status('雲端已有其他更新，正在取得最新版本供你選擇…');
+        result=await core.upload(user,true);
+      }
       if(result.cancelled){status('已取消，資料未取代。');return}
       if(result.empty){status('雲端沒有此帳號的資料；本機內容保持不變。');return}
       if(action!=='restore')localStorage.setItem('lazyPlanner.user',user);
@@ -68,7 +74,7 @@
     if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();confirming?answer(false):close();return}
     if(e.key==='ArrowLeft'||e.key==='ArrowRight')e.stopImmediatePropagation();
     if(e.key==='Tab'){
-      const container=confirming?confirmLayer:panel,controls=[...container.querySelectorAll('button:not(:disabled),input:not(:disabled)')];
+      const container=confirming?confirmLayer:panel,controls=[...container.querySelectorAll('button:not(:disabled),input:not(:disabled),summary')].filter(el=>!el.closest('details:not([open])')||el.tagName==='SUMMARY');
       if(!controls.length){e.preventDefault();return}
       if(e.shiftKey&&document.activeElement===controls[0]){e.preventDefault();controls.at(-1).focus()}
       else if(!e.shiftKey&&document.activeElement===controls.at(-1)){e.preventDefault();controls[0].focus()}
