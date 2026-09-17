@@ -1,0 +1,27 @@
+/* Space reserved in each week keeps plan bars separate from dates and event marks. */
+#grid{display:block}.calendar-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));position:relative}
+.calendar-week .day{aspect-ratio:auto;min-height:142px;padding:4px 2px;border-bottom:1px solid var(--line)!important}
+.calendar-week:last-child .day{border-bottom:0!important}.calendar-week .number{font-size:.875rem;width:27px;height:27px}
+.plan-bars{position:absolute;inset:39px 0 auto;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:23px 23px 18px;row-gap:3px;pointer-events:none}
+.plan-bar{margin:0 2px;border-radius:4px;color:white;padding:3px 5px;font-size:.75rem;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 2px #0008;box-shadow:inset 0 0 0 100px #0002}
+.plan-overflow{grid-column:1/-1;grid-row:3;text-align:right;padding-right:7px;font-size:.75rem;color:#475569}
+.calendar-week .event-markers{top:29px;right:4px}.calendar-week .event-marker{width:7px;height:7px}
+.calendar-week .marks{bottom:8px}.calendar-week .more{bottom:22px}
+.agenda-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:.875rem}
+.agenda-table th{text-align:left;color:#64748b;font-size:.875rem;padding:9px 4px;border-bottom:1px solid var(--line)}
+.agenda-table th:first-child{width:46px}.agenda-table th:nth-child(2){width:82px}
+.agenda-table td{padding:12px 4px;vertical-align:top;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.agenda-table .check{width:34px;height:34px}.agenda-time,.agenda-content{border:0;background:transparent;text-align:left;padding:5px 0;cursor:pointer;font:inherit;color:inherit;width:100%;min-height:44px}
+.agenda-time{font-variant-numeric:tabular-nums;color:#3730a3;font-weight:650;font-size:.875rem;line-height:1.5}
+.source-caption{display:block;font-size:.8125rem;line-height:1.5;color:#475569}.source-caption i,.source-link i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.agenda-name{display:block;font-size:1rem;line-height:1.5}.agenda-name.completed{text-decoration:line-through;color:#64748b}
+.source-link{border:0;border-radius:7px;background:#f1f5f9;color:#334155;font-size:.875rem;min-height:36px;padding:6px 8px;text-align:left;cursor:pointer;overflow-wrap:anywhere}
+.agenda-delete{float:right;color:#be123c}.day-plans{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px}
+.overlap-note{display:block;color:#9a3412;font-size:.75rem;line-height:1.5;font-weight:650}.overlapping{background:#fff7ed!important}
+.week-task{border:0;text-align:left;width:100%;cursor:pointer;color:var(--ink)}.week-task .week-item-title,.week-task .week-item-sub{display:block}.week-item-sub{font-size:.8125rem}.week-time{font-size:.875rem}.week-item-title{font-size:1rem}
+.stage-item{grid-template-columns:32px minmax(0,1fr) 44px 32px}.stage-edit{border:0;background:#eff6ff;color:#1d4ed8;border-radius:7px;min-height:36px;padding:4px;font-size:.875rem;cursor:pointer}
+.stage-date{font-size:.8125rem;line-height:1.5}.plan-title{overflow-wrap:anywhere}.agenda-stage-title{font-size:1rem;line-height:1.5;overflow-wrap:anywhere;margin:0}
+.plan-form select{width:100%;font:inherit;min-height:44px;border:1px solid #d1d5db;border-radius:12px;padding:10px;background:white}
+.sheet{overflow-y:auto}.time-row>*{min-width:0}input[type=time],input[type=date]{min-width:0;max-width:100%}
+button:focus-visible{outline:3px solid #60a5fa;outline-offset:2px}
+@media(min-width:600px){.calendar-week .day{min-height:142px}}
