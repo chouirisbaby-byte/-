@@ -275,6 +275,7 @@
     let startY=0;document.querySelector('.sheet').addEventListener('touchstart',e=>startY=e.touches[0].clientY,{passive:true});document.querySelector('.sheet').addEventListener('touchend',e=>{if(e.changedTouches[0].clientY-startY>90&&!editor.classList.contains('show')&&!eventEditor.classList.contains('show'))closeSheet()},{passive:true});
     renderLegend();renderCategoryPicker();render();renderLongPlans();setMainView('week');
   </script>
+  <script src="planner-overdue.js"></script>
   <script src="planner-integration.js"></script>
   <script src="planner-sync-core.js"></script>
   <script src="planner-sync-ui.js"></script>
