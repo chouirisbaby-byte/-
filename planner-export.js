@@ -2,9 +2,12 @@
 (function(root){
 'use strict';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
-function collect(plans,{id='',start='',end=''}={}){
+const typeLabels={all:'全部計畫',stage:'階段性計畫',repeat:'重複性計畫'};
+const matchesType=(plan,type)=>type==='all'||(type==='repeat'?plan.type==='repeat':plan.type!=='repeat');
+function collect(plans,{id='',start='',end='',type='all'}={}){
+ if(!Object.hasOwn(typeLabels,type))throw Error('請選擇有效的計畫類型。');
  if(start&&end&&end<start)throw Error('結束日期不能早於開始日期。');
- return plans.filter(p=>(!id||p.id===id)&&(!start||p.endDate>=start)&&(!end||p.startDate<=end)).map(p=>{
+ return plans.filter(p=>matchesType(p,type)&&(!id||p.id===id)&&(!start||p.endDate>=start)&&(!end||p.startDate<=end)).map(p=>{
  const stages=(p.stages||[]).filter(s=>(!start||s.targetDate>=start)&&(!end||s.targetDate<=end)).slice().sort((a,b)=>a.targetDate.localeCompare(b.targetDate)||(a.startTime||'99:99').localeCompare(b.startTime||'99:99'));
  const all=p.stages||[],repeat=p.type==='repeat',done=all.filter(s=>s.done).reduce((n,s)=>n+(repeat?Number(s.quantity)||0:1),0),total=repeat?p.targetTotal:all.length;
  return {title:p.title,start:p.startDate,end:p.endDate,note:p.note||'',summary:repeat?`整個計畫：目標 ${total} 回，已完成 ${done} 回，剩餘 ${Math.max(0,total-done)} 回`:`整個計畫：已完成 ${done}／${total} 個階段`,rows:stages.map(s=>[s.targetDate,s.startTime&&s.endTime?s.startTime+'–'+s.endTime:'未排時間',s.title,repeat?String(s.quantity||0)+' 回':'—',s.done?'已完成':'未完成'])};
@@ -38,10 +41,18 @@ if(typeof document==='undefined')return;
 const host=document.querySelector('#longPlanView .long-head');if(!host)return;
 const button=document.createElement('button');button.type='button';button.className='long-add';button.textContent='匯出 PDF／Word';host.style.flexWrap='wrap';host.append(button);
 const dialog=document.createElement('dialog');dialog.style.cssText='border:1px solid #cbd5e1;border-radius:18px;padding:22px;width:min(440px,85vw);max-height:85vh;overflow:auto;color:#172033';dialog.setAttribute('aria-labelledby','exportHeading');
-dialog.innerHTML='<form method="dialog"><h2 id="exportHeading">匯出計畫</h2><p>匯出目前本機計畫。日期範圍只篩選明細，進度仍標示整個計畫。</p><label>計畫<select id="exportPlan" style="display:block;width:100%;padding:10px;margin:8px 0 16px"></select></label><label>開始日期（選填）<input id="exportStart" type="date" style="display:block;padding:10px;margin:8px 0 16px"></label><label>結束日期（選填）<input id="exportEnd" type="date" style="display:block;padding:10px;margin:8px 0 16px"></label><p id="exportStatus" role="status"></p><div style="display:flex;flex-wrap:wrap;gap:8px"><button type="button" id="exportPDF" class="save">PDF 列印預覽</button><button type="button" id="exportWord" class="save">下載 Word</button><button class="cancel">關閉</button></div></form>';document.body.append(dialog);
+dialog.innerHTML='<form method="dialog"><h2 id="exportHeading">匯出計畫</h2><p>匯出目前本機計畫。日期範圍只篩選明細，進度仍標示整個計畫。</p><label>計畫類型<select id="exportType" style="display:block;width:100%;padding:10px;margin:8px 0 16px"><option value="all">全部計畫</option><option value="stage">階段性計畫</option><option value="repeat">重複性計畫</option></select></label><label>計畫<select id="exportPlan" style="display:block;width:100%;padding:10px;margin:8px 0 16px"></select></label><label>開始日期（選填）<input id="exportStart" type="date" style="display:block;padding:10px;margin:8px 0 16px"></label><label>結束日期（選填）<input id="exportEnd" type="date" style="display:block;padding:10px;margin:8px 0 16px"></label><p id="exportStatus" role="status"></p><div style="display:flex;flex-wrap:wrap;gap:8px"><button type="button" id="exportPDF" class="save">PDF 列印預覽</button><button type="button" id="exportWord" class="save">下載 Word</button><button class="cancel">關閉</button></div></form>';document.body.append(dialog);
 const $=s=>dialog.querySelector(s);
-button.onclick=()=>{const select=$('#exportPlan');select.replaceChildren(new Option('全部計畫',''));for(const p of longPlans)select.add(new Option(p.title,p.id));$('#exportStatus').textContent='';dialog.showModal();};
-function selection(){const start=$('#exportStart').value,end=$('#exportEnd').value,id=$('#exportPlan').value,p=collect(longPlans,{id,start,end});if(!p.length)throw Error('此範圍沒有可匯出的計畫。');return {plans:p,scope:'明細範圍：'+(start||'不限起日')+' 至 '+(end||'不限迄日')};}
+function refreshPlanOptions(){
+ const select=$('#exportPlan'),previous=select.value,type=$('#exportType').value;
+ select.replaceChildren(new Option('此類型的全部計畫',''));
+ for(const p of longPlans.filter(p=>matchesType(p,type)))select.add(new Option(p.title,p.id));
+ if([...select.options].some(o=>o.value===previous))select.value=previous;
+ $('#exportStatus').textContent=select.options.length===1?'此類型目前沒有計畫。':'';
+}
+$('#exportType').onchange=refreshPlanOptions;
+button.onclick=()=>{refreshPlanOptions();dialog.showModal();};
+function selection(){const start=$('#exportStart').value,end=$('#exportEnd').value,id=$('#exportPlan').value,type=$('#exportType').value,p=collect(longPlans,{id,start,end,type});if(!p.length)throw Error('此類型與日期範圍沒有可匯出的計畫。');return {plans:p,scope:'計畫類型：'+typeLabels[type]+'\n明細範圍：'+(start||'不限起日')+' 至 '+(end||'不限迄日')};}
 $('#exportWord').onclick=()=>{try{const s=selection(),url=URL.createObjectURL(docx(s.plans,s.scope)),a=document.createElement('a');a.href=url;a.download='讀書計畫.docx';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);$('#exportStatus').textContent='已產生 Word 檔案，請查看下載項目。';}catch(e){$('#exportStatus').textContent=e.message;}};
 $('#exportPDF').onclick=()=>{try{const s=selection(),w=window.open('','_blank');if(!w)throw Error('請允許此網站開啟列印預覽視窗。');w.opener=null;w.document.open();w.document.write(printHTML(s.plans,s.scope));w.document.close();w.document.querySelector('#print').onclick=()=>w.print();$('#exportStatus').textContent='預覽已開啟，請按「列印／儲存 PDF」。';}catch(e){$('#exportStatus').textContent=e.message;}};
 })(globalThis);
